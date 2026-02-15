@@ -82,9 +82,11 @@ def extract_symbol(text):
 def close_position(symbol, client):
     """Close any open position for symbol"""
     try:
+        # Cancel open orders
         client.futures_cancel_all_open_orders(symbol=symbol)
         logger.info(f"✅ Cancelled open orders for {symbol}")
         
+        # Check and close position
         positions = client.futures_position_information(symbol=symbol)
         for pos in positions:
             if float(pos['positionAmt']) != 0:
@@ -114,36 +116,18 @@ async def main():
     # Initialize Telegram client
     telegram_client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
     
-    # ===== PROXY FIX FOR BINANCE REGIONAL RESTRICTIONS =====
-    # Using public proxy to bypass Binance blocking Render's IP
-    proxies = {
-        'http': 'http://199.189.105.128:8888',
-        'https': 'http://199.189.105.128:8888'
-    }
-    
+    # Initialize Binance client - NO PROXY, just like the first working bot
     try:
-        binance_client = Client(
-            BINANCE_KEY, 
-            BINANCE_SECRET, 
-            testnet=True,
-            requests_params={'proxies': proxies}
-        )
-        logger.info("✅ Binance client initialized with proxy")
-    except Exception as e:
-        logger.error(f"Failed to initialize Binance client with proxy: {e}")
-        logger.info("Trying without proxy...")
-        # Fallback to no proxy
         binance_client = Client(BINANCE_KEY, BINANCE_SECRET, testnet=True)
-    
-    binance_client.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'
-    
-    # Test Binance connection
-    try:
-        binance_client.futures_account_balance()
+        binance_client.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'
+        logger.info("✅ Binance client initialized")
+        
+        # Test connection
+        balance = binance_client.futures_account_balance()
         logger.info("✅ Binance connection successful")
     except Exception as e:
-        logger.error(f"Binance connection failed: {e}")
-        logger.error("Please check your API keys and proxy settings")
+        logger.error(f"❌ Binance connection failed: {e}")
+        logger.error("Please check your API keys")
         return
     
     # Connect to Telegram
@@ -151,7 +135,7 @@ async def main():
     me = await telegram_client.get_me()
     logger.info(f"✅ Logged into Telegram as: {me.first_name}")
     
-    # Find channel by searching dialogs
+    # Find channel
     logger.info("🔍 Searching for your private channel...")
     channel = None
     async for dialog in telegram_client.iter_dialogs():
@@ -172,7 +156,7 @@ async def main():
             logger.info(f"📨 Signal received")
             
             # Check for close signal
-            if "close the trade" in text_lower or "negative" in text_lower or "kindly close" in text_lower:
+            if any(word in text_lower for word in ["close the trade", "negative", "kindly close", "exit"]):
                 logger.info("🔴 CLOSE SIGNAL DETECTED!")
                 symbol = extract_symbol(text)
                 if symbol:
@@ -223,6 +207,15 @@ async def main():
             )
             logger.info(f"✅ ORDER PLACED! Waiting for TP1 @ {tp1}")
             
+            # Store position
+            active_positions[symbol] = {
+                'entry': entry_price,
+                'sl': stop_loss,
+                'tp1': tp1,
+                'quantity': quantity,
+                'side': side
+            }
+            
             # Place TP1 order (50%)
             tp1_side = 'SELL' if side == 'BUY' else 'BUY'
             binance_client.futures_create_order(
@@ -251,7 +244,7 @@ async def main():
             logger.error(f"Handler error: {e}")
     
     logger.info(f"👂 Listening for signals from: {channel.title}")
-    logger.info("✅ Bot ready - Will auto-close trades on 'close the trade' signals")
+    logger.info("✅ Bot ready - Will auto-close trades on close signals")
     
     await telegram_client.run_until_disconnected()
 
