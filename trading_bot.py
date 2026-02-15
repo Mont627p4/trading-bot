@@ -43,6 +43,8 @@ def calculate_quantity(entry_price, stop_loss, symbol, client):
     try:
         balance = get_usdt_balance(client)
         risk_amount = balance * (RISK_PERCENT / 100)
+        logger.info(f"📊 Risk amount: {risk_amount} USDT")
+        
         info = client.futures_exchange_info()
         step_size = 0.001
         for s in info['symbols']:
@@ -50,13 +52,21 @@ def calculate_quantity(entry_price, stop_loss, symbol, client):
                 for filt in s['filters']:
                     if filt['filterType'] == 'LOT_SIZE':
                         step_size = float(filt['stepSize'])
+                        logger.info(f"📏 Step size for {symbol}: {step_size}")
                         break
+        
         price_diff = abs(entry_price - stop_loss)
         if price_diff == 0:
+            logger.error("❌ Price difference is zero")
             return 0
+            
         raw_quantity = risk_amount / price_diff
+        logger.info(f"🧮 Raw quantity: {raw_quantity}")
+        
         precision = int(round(-math.log10(step_size)))
         quantity = math.floor(raw_quantity * (10 ** precision)) / (10 ** precision)
+        
+        logger.info(f"✅ Final quantity: {quantity}")
         return quantity
     except Exception as e:
         logger.error(f"Quantity error: {e}")
@@ -74,11 +84,13 @@ def close_position(symbol, client):
     try:
         client.futures_cancel_all_open_orders(symbol=symbol)
         logger.info(f"✅ Cancelled open orders for {symbol}")
+        
         positions = client.futures_position_information(symbol=symbol)
         for pos in positions:
             if float(pos['positionAmt']) != 0:
                 side = 'SELL' if float(pos['positionAmt']) > 0 else 'BUY'
                 quantity = abs(float(pos['positionAmt']))
+                
                 client.futures_create_order(
                     symbol=symbol,
                     side=side,
@@ -86,6 +98,7 @@ def close_position(symbol, client):
                     quantity=quantity
                 )
                 logger.info(f"✅ Closed position for {symbol}")
+                
                 if symbol in active_positions:
                     del active_positions[symbol]
                 return True
@@ -98,14 +111,45 @@ async def main():
     """Main async function"""
     logger.info("🚀 Starting bot...")
     
-    # Initialize clients INSIDE the async function
+    # Initialize Telegram client
     telegram_client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
-    binance_client = Client(BINANCE_KEY, BINANCE_SECRET, testnet=True)
+    
+    # ===== PROXY FIX FOR BINANCE REGIONAL RESTRICTIONS =====
+    # Using public proxy to bypass Binance blocking Render's IP
+    proxies = {
+        'http': 'http://199.189.105.128:8888',
+        'https': 'http://199.189.105.128:8888'
+    }
+    
+    try:
+        binance_client = Client(
+            BINANCE_KEY, 
+            BINANCE_SECRET, 
+            testnet=True,
+            requests_params={'proxies': proxies}
+        )
+        logger.info("✅ Binance client initialized with proxy")
+    except Exception as e:
+        logger.error(f"Failed to initialize Binance client with proxy: {e}")
+        logger.info("Trying without proxy...")
+        # Fallback to no proxy
+        binance_client = Client(BINANCE_KEY, BINANCE_SECRET, testnet=True)
+    
     binance_client.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'
     
+    # Test Binance connection
+    try:
+        binance_client.futures_account_balance()
+        logger.info("✅ Binance connection successful")
+    except Exception as e:
+        logger.error(f"Binance connection failed: {e}")
+        logger.error("Please check your API keys and proxy settings")
+        return
+    
+    # Connect to Telegram
     await telegram_client.start()
     me = await telegram_client.get_me()
-    logger.info(f"✅ Logged in as: {me.first_name}")
+    logger.info(f"✅ Logged into Telegram as: {me.first_name}")
     
     # Find channel by searching dialogs
     logger.info("🔍 Searching for your private channel...")
@@ -132,6 +176,7 @@ async def main():
                 logger.info("🔴 CLOSE SIGNAL DETECTED!")
                 symbol = extract_symbol(text)
                 if symbol:
+                    logger.info(f"Closing position for {symbol}")
                     close_position(symbol, binance_client)
                 return
             
@@ -206,8 +251,9 @@ async def main():
             logger.error(f"Handler error: {e}")
     
     logger.info(f"👂 Listening for signals from: {channel.title}")
+    logger.info("✅ Bot ready - Will auto-close trades on 'close the trade' signals")
+    
     await telegram_client.run_until_disconnected()
 
 if __name__ == "__main__":
-    # Proper asyncio execution
     asyncio.run(main())
