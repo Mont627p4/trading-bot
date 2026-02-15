@@ -9,12 +9,12 @@ import os
 import time
 
 # ========== YOUR CREDENTIALS - REPLACE THESE ==========
-API_ID = 123456  # <-- REPLACE with your API_ID
-API_HASH = "your_api_hash"  # <-- REPLACE with your API_HASH
-BINANCE_KEY = "your_binance_key"  # <-- REPLACE
-BINANCE_SECRET = "your_binance_secret"  # <-- REPLACE
-CHANNEL_ID = -1002245575219  # YOUR CHANNEL ID
-SESSION_STRING = "your_session_string"  # <-- REPLACE
+API_ID = 38099889  # <-- REPLACE with your API_ID
+API_HASH = "333fe09debc36b6aac46aa60dac30e30"  # <-- REPLACE with your API_HASH
+BINANCE_KEY = "ApgzC2cpewhBKqb1YPODfRCPzzV1Cy1y3wtpUiDAk8Dq21o6dFG4r6fcVpISey9W"  # <-- REPLACE
+BINANCE_SECRET = "TllMkU490TyHO5HORsIF9QZsbgveitB2nb95CWgh39HbmOHz0GSJZnf9mlNa5r95"  # <-- REPLACE
+CHANNEL_ID = -1002840783921  # YOUR CHANNEL ID
+SESSION_STRING = "1BVtsOLsBu7-3Uaw0j6l5j0saUw58qhJ1cidZFrnw3lEI6nFRILffsW2gDtBX__8WaQZ0zkDRl3HtLs5DY9x-sbiHkJcoX1lXGcG7YDgTfXvqweasefhPC6Vp_F7itL6-LOd9pSueRJCxaNgA-VTNcA2PjfYBxejy7ueKpGD1b-ttjUIXEHX3J1gGPJKS47jMmNdcVN_b2x3JtcFO-nO35gRb1YMaDFfdJ_svj6bbP_hRZo3JLMs6ka31J9MGUMrJjKdQpmoMWMLKfnAeo3OP_kVs-lCFGTB8t7QQhMDqoeuxtDiXy6vBBmN_djpbTl7OSny2OoXbRGeG1Auxa_1fIn-_8a4gV-w="  # <-- REPLACE
 # =====================================================
 
 # Setup logging
@@ -248,3 +248,4 @@ async def main():
 if __name__ == '__main__':
     # THIS IS THE KEY FIX - Create event loop properly
     asyncio.run(main())
+
