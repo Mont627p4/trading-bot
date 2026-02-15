@@ -1,7 +1,1 @@
-services:
-  - type: web
-    name: telegram-bot
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: ./start.sh
+
