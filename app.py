@@ -16,7 +16,6 @@ def health():
     return "OK", 200
 
 def run_bot():
-    """Run trading bot as subprocess"""
     process = subprocess.Popen(
         [sys.executable, 'trading_bot.py'],
         stdout=subprocess.PIPE,
@@ -28,7 +27,6 @@ def run_bot():
     for line in process.stdout:
         logging.info(f"BOT: {line.strip()}")
 
-# Start bot in background
 thread = threading.Thread(target=run_bot, daemon=True)
 thread.start()
 logging.info("✅ Bot thread started")
