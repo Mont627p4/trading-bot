@@ -2,49 +2,50 @@ from flask import Flask
 import logging
 import subprocess
 import sys
+import threading
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 @app.route('/')
 def home():
-    return "Bot is running with auto-close functionality!"
+    return "Bot is initializing... Check logs for status."
 
 @app.route('/health')
 def health():
     return "OK", 200
 
-def start_bot():
-    """Starts the bot and streams its logs."""
+def run_bot():
+    """Run the bot and stream all output to logs."""
     try:
-        # Start the bot process, capturing its output
+        # Start the bot process
         process = subprocess.Popen(
             [sys.executable, 'trading_bot.py'],
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,  # Combine stdout and stderr
+            stderr=subprocess.STDOUT,
             universal_newlines=True,
             bufsize=1
         )
-        logging.info(f"🚀 Bot started with PID: {process.pid}")
+        logging.info(f"🚀 Bot process started with PID: {process.pid}")
 
-        # Continuously read and log the bot's output line by line
+        # Read and log output line by line in REAL TIME
         for line in iter(process.stdout.readline, ''):
             if line:
-                # This will print the bot's logs directly to your Render logs
-                print(f"BOT: {line.strip()}")
+                # CRITICAL: This prints the bot's errors directly to your logs
+                print(f"BOT DEBUG: {line.strip()}")
+                logging.info(f"BOT: {line.strip()}")
 
-        # Wait for the process to finish and log its exit code
+        # Wait for process to finish and log exit code
         return_code = process.wait()
-        logging.error(f"❌ Bot process exited with code {return_code}")
+        logging.error(f"❌❌❌ BOT PROCESS EXITED WITH CODE {return_code} ❌❌❌")
 
     except Exception as e:
-        logging.error(f"Failed to start or run bot: {e}")
+        logging.error(f"CRITICAL ERROR in run_bot: {e}")
 
 # Start the bot in a background thread
-import threading
-bot_thread = threading.Thread(target=start_bot, daemon=True)
+bot_thread = threading.Thread(target=run_bot, daemon=True)
 bot_thread.start()
-logging.info("✅ Bot thread initiated")
+logging.info("✅ Bot thread initiated - waiting for output...")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
